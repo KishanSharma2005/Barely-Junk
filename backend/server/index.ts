@@ -16,7 +16,7 @@ const app=express();
 app.disable('x-powered-by');
 app.set('trust proxy',process.env.TRUST_PROXY==='true' ? 1 : false);
 app.use(helmet({crossOriginResourcePolicy:{policy:'cross-origin'}}));
-app.use(cors({origin:(process.env.FRONTEND_ORIGIN||'http://localhost:5173').split(',').map(s=>s.trim()),credentials:true,methods:['GET','POST','PATCH','OPTIONS'],allowedHeaders:['Content-Type','Authorization']}));
+app.use(cors({origin:(process.env.FRONTEND_ORIGIN||'http://localhost:5173').split(',').map(s=>s.trim()),credentials:true,methods:['GET','POST','PATCH','DELETE','OPTIONS'],allowedHeaders:['Content-Type','Authorization']}));
 app.use('/api/payments/webhook',express.raw({type:'application/json',limit:'1mb'}),async(req,res)=>{
   try{await razorpayWebhook(req.body,req.header('x-razorpay-signature'),req.header('x-razorpay-event-id'),req.header('x-razorpay-event'));res.sendStatus(200);}
   catch(err){console.error('Razorpay webhook rejected:',err);res.sendStatus(400);}
@@ -25,6 +25,8 @@ app.use(express.json({limit:'32kb'}));
 app.use('/api',rateLimit({windowMs:60_000,limit:300,standardHeaders:'draft-8',legacyHeaders:false}));
 app.use('/api/auth/login',rateLimit({windowMs:15*60_000,limit:10,standardHeaders:'draft-8',legacyHeaders:false,message:{error:'Too many login attempts. Try again later.'}}));
 app.use('/api/auth/register',rateLimit({windowMs:60*60_000,limit:8,standardHeaders:'draft-8',legacyHeaders:false}));
+app.use('/api/auth/forgot-password',rateLimit({windowMs:60*60_000,limit:5,standardHeaders:'draft-8',legacyHeaders:false,message:{error:'Too many password reset requests. Try again later.'}}));
+app.use('/api/auth/reset-password',rateLimit({windowMs:15*60_000,limit:10,standardHeaders:'draft-8',legacyHeaders:false,message:{error:'Too many password reset attempts. Try again later.'}}));
 app.get('/api/health',async(_req,res)=>{try{await pool.query('SELECT 1');res.json({status:'ok',database:'connected'});}catch(error){console.error('Database health check failed:',error);res.status(503).json({status:'unavailable',database:'unavailable',error:'PostgreSQL is unreachable. Start PostgreSQL and check backend/.env DATABASE_URL.'});}});
 app.use('/api/auth',authRouter);
 app.use('/api',catalogRouter);
